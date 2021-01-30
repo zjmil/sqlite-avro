@@ -1,0 +1,15 @@
+
+# build
+*.dSYM/
+*.o
+*.a
+*.dylib
+
+# data
+*.avro
+*.avsc
+*.db
+
+# editor
+.vscode/
+.idea/
