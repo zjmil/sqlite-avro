@@ -1,10 +1,10 @@
 
 
-CFLAGS 	= -Wall -Wextra -g -std=c99
-SOURCES = avro.c
-OBJECTS = avro.o
-LIBS 	= -lavro -lsqlite3
-TARGET 	= avro.dylib
+CFLAGS 	:= -Wall -Wextra -Wno-unused-parameter -g -std=c99
+SOURCES := avro.c
+OBJECTS := avro.o
+LIBS 	:= -lavro -lsqlite3
+TARGET 	:= avro.dylib
 
 all: $(TARGET)
 

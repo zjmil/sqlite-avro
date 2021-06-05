@@ -1,10 +1,8 @@
-/* SQLITE Loadable extension for reading an avro file */
+/* SQLite Loadable extension for reading an avro file */
 #include <sqlite3ext.h>
 SQLITE_EXTENSION_INIT1
 
 #include <avro.h>
-
-#define UNUSED(x) (void)(x)
 
 // TODO: there are almost certainly memory errors
 //       using the Avro library
@@ -29,9 +27,6 @@ static sqlite3_module avroModule;
  */
 static void *avroSqliteAllocator(void *user_data, void *ptr, size_t osize, size_t nsize)
 {
-    UNUSED(user_data);
-    UNUSED(osize);
-
     if (nsize == 0) {
         sqlite3_free(ptr);
         return NULL;
@@ -76,11 +71,12 @@ typedef struct AvroTable {
 
 static void avroTableSetError(AvroTable *pAvro, const char *fmt, ...)
 {
-    sqlite3_free(pAvro->base.zErrMsg);
-
     va_list ap;
     va_start(ap, fmt);
+
+    sqlite3_free(pAvro->base.zErrMsg);
     pAvro->base.zErrMsg = sqlite3_vmprintf(fmt, ap);
+
     va_end(ap);
 }
 
@@ -100,8 +96,6 @@ static int avroDisconnect(sqlite3_vtab *pVtab)
 
 static int avroCreate(sqlite3 *db, void *pAux, int argc, const char *const *argv, sqlite3_vtab **ppVtab, char **pzErr)
 {
-    UNUSED(pAux);
-
     int rc = SQLITE_OK;
     AvroTable *pAvro = NULL;
     char *errMsg = NULL;
@@ -214,8 +208,6 @@ static int avroConnect(sqlite3 *db, void *pAux, int argc, const char *const *arg
  */
 static int avroBestIndex(sqlite3_vtab *pVtab, sqlite3_index_info *info)
 {
-    UNUSED(pVtab);
-
     info->estimatedCost = 1000000;
 
     return SQLITE_OK;
@@ -294,11 +286,6 @@ static int avroNext(sqlite3_vtab_cursor *pVtabCursor)
 
 static int avroFilter(sqlite3_vtab_cursor *pVtabCursor, int idxNum, const char *idxStr, int argc, sqlite3_value **argv)
 {
-    UNUSED(idxNum);
-    UNUSED(idxStr);
-    UNUSED(argc);
-    UNUSED(argv);
-
     AvroTable *pAvro = (AvroTable *)pVtabCursor->pVtab;
     AvroCursor *pCur = (AvroCursor *)pVtabCursor;
 
