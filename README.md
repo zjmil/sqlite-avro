@@ -9,6 +9,6 @@ for reading [Avro](https://avro.apache.org) files.
 ```
 $ sqlite3
 > .load avro
-> create virtual table mydate.avro using avro('mydata.avro');
+> create virtual table mydata.avro using avro('mydata.avro');
 > select * from mydata.avro;
 ```
