@@ -16,9 +16,11 @@ $(TARGET): $(OBJECTS)
 %.o: %.c
 	$(CC) $(CFLAGS) $(CPPFLAGS) -c -o $@ $<
 
+format:
+	clang-format -i $(SOURCES)
 
 clean:
 	$(RM) $(TARGET) $(OBJECTS)
 
 
-.PHONY: clean
+.PHONY: format clean

@@ -6,7 +6,6 @@ SQLITE_EXTENSION_INIT1
 
 #define UNUSED(x) (void)(x)
 
-
 // TODO: there are almost certainly memory errors
 //       using the Avro library
 
@@ -99,7 +98,7 @@ static int avroDisconnect(sqlite3_vtab *pVtab)
     return SQLITE_OK;
 }
 
-static int avroCreate(sqlite3 *db, void *pAux, int argc, const char *const*argv, sqlite3_vtab **ppVtab, char **pzErr)
+static int avroCreate(sqlite3 *db, void *pAux, int argc, const char *const *argv, sqlite3_vtab **ppVtab, char **pzErr)
 {
     UNUSED(pAux);
 
@@ -136,7 +135,7 @@ static int avroCreate(sqlite3 *db, void *pAux, int argc, const char *const*argv,
     // trim quotes
     if (argv[3][0] == '\'') {
         memcpy(pAvro->zFile, argv[3] + 1, nFile - 2);
-        pAvro->zFile[nFile-2] = '\0';
+        pAvro->zFile[nFile - 2] = '\0';
     } else {
         memcpy(pAvro->zFile, argv[3], nFile);
     }
@@ -169,7 +168,7 @@ static int avroCreate(sqlite3 *db, void *pAux, int argc, const char *const*argv,
             goto error;
         }
 
-        const char *tail = (i+1 < nFields) ? ", " : ");";
+        const char *tail = (i + 1 < nFields) ? ", " : ");";
         char *createTableNext = sqlite3_mprintf("%s %s %s %s", createTable, fieldName, sqliteType, tail);
         sqlite3_free(createTable);
         createTable = createTableNext;
@@ -205,7 +204,7 @@ end:
     return rc;
 }
 
-static int avroConnect(sqlite3 *db, void *pAux, int argc, const char *const*argv, sqlite3_vtab **ppVtab, char **pzErr)
+static int avroConnect(sqlite3 *db, void *pAux, int argc, const char *const *argv, sqlite3_vtab **ppVtab, char **pzErr)
 {
     return avroCreate(db, pAux, argc, argv, ppVtab, pzErr);
 }
@@ -434,41 +433,34 @@ static int avroRowid(sqlite3_vtab_cursor *pVtabCursor, sqlite_int64 *pRowid)
 }
 
 static sqlite3_module avroModule = {
-    0,                         /* iVersion */
-    avroCreate,                /* xCreate */
-    avroConnect,               /* xConnect */
-    avroBestIndex,             /* xBestIndex */
-    avroDisconnect,            /* xDisconnect */
-    avroDisconnect,            /* xDestroy */
-    avroOpen,                  /* xOpen - open a cursor */
-    avroClose,                 /* xClose - close a cursor */
-    avroFilter,                /* xFilter - configure scan constraints */
-    avroNext,                  /* xNext - advance a cursor */
-    avroEof,                   /* xEof - check for end of scan */
-    avroColumn,                /* xColumn - read data */
-    avroRowid,                 /* xRowid - read data */
-    0,                         /* xUpdate */
-    0,                         /* xBegin */
-    0,                         /* xSync */
-    0,                         /* xCommit */
-    0,                         /* xRollback */
-    0,                         /* xFindMethod */
-    0,                         /* xRename */
-    0,                         /* xSavepoint */
-    0,                         /* xRelease */
-    0,                         /* xRollbackTo */
-    0                          /* xShadowName */
+    0,              /* iVersion */
+    avroCreate,     /* xCreate */
+    avroConnect,    /* xConnect */
+    avroBestIndex,  /* xBestIndex */
+    avroDisconnect, /* xDisconnect */
+    avroDisconnect, /* xDestroy */
+    avroOpen,       /* xOpen - open a cursor */
+    avroClose,      /* xClose - close a cursor */
+    avroFilter,     /* xFilter - configure scan constraints */
+    avroNext,       /* xNext - advance a cursor */
+    avroEof,        /* xEof - check for end of scan */
+    avroColumn,     /* xColumn - read data */
+    avroRowid,      /* xRowid - read data */
+    0,              /* xUpdate */
+    0,              /* xBegin */
+    0,              /* xSync */
+    0,              /* xCommit */
+    0,              /* xRollback */
+    0,              /* xFindMethod */
+    0,              /* xRename */
+    0,              /* xSavepoint */
+    0,              /* xRelease */
+    0,              /* xRollbackTo */
+    0               /* xShadowName */
 };
 
-
-#ifdef _WIN32
-__declspec(dllexport)
-#endif
-int sqlite3_avro_init(
-    sqlite3 *db,
-    char **pzErrMsg,
-    const sqlite3_api_routines *pApi
-){
+int sqlite3_avro_init(sqlite3 *db, char **pzErrMsg, const sqlite3_api_routines *pApi)
+{
     int rc = SQLITE_OK;
     SQLITE_EXTENSION_INIT2(pApi)
 
