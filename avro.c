@@ -35,6 +35,15 @@ static void *avroSqliteAllocator(void *user_data, void *ptr, size_t osize, size_
     return sqlite3_realloc64(ptr, nsize);
 }
 
+static void *sqlite3_calloc(int size)
+{
+    void *p = sqlite3_malloc(size);
+    if (p) {
+        memset(p, 0, size);
+    }
+    return p;
+}
+
 static const char *avroTypeToSqliteType(avro_schema_t schema)
 {
     switch (avro_typeof(schema)) {
@@ -94,6 +103,42 @@ static int avroDisconnect(sqlite3_vtab *pVtab)
     return SQLITE_OK;
 }
 
+static int avroSchemaToCreateTable(avro_schema_t schema, char **pCreateTable, char **pErrMsg)
+{
+    int nFields = avro_schema_record_size(schema);
+    if (nFields <= 0) {
+        *pErrMsg = sqlite3_mprintf("Avro schema has no fields");
+        return SQLITE_ERROR;
+    }
+
+    char *createTable = sqlite3_mprintf("CREATE TABLE x(");
+    for (int i = 0; createTable && i < nFields; i++) {
+        const char *fieldName = avro_schema_record_field_name(schema, i);
+        avro_schema_t fieldSchema = avro_schema_record_field_get_by_index(schema, i);
+
+        const char *sqliteType = avroTypeToSqliteType(fieldSchema);
+        if (!sqliteType) {
+            sqlite3_free(createTable);
+            *pErrMsg = sqlite3_mprintf("Unsupported Avro type for field '%s'", fieldName);
+            return SQLITE_ERROR;
+        }
+
+        const char *tail = (i + 1 < nFields) ? ", " : ");";
+        char *createTableNext = sqlite3_mprintf("%s %s %s %s", createTable, fieldName, sqliteType, tail);
+        sqlite3_free(createTable);
+        createTable = createTableNext;
+    }
+
+    if (!createTable) {
+        *pErrMsg = sqlite3_mprintf("Out of memory");
+        return SQLITE_NOMEM;
+    }
+
+    *pCreateTable = createTable;
+
+    return SQLITE_OK;
+}
+
 static int avroCreate(sqlite3 *db, void *pAux, int argc, const char *const *argv, sqlite3_vtab **ppVtab, char **pzErr)
 {
     int rc = SQLITE_OK;
@@ -108,13 +153,12 @@ static int avroCreate(sqlite3 *db, void *pAux, int argc, const char *const *argv
         goto error;
     }
 
-    pAvro = sqlite3_malloc(sizeof(*pAvro));
+    pAvro = sqlite3_calloc(sizeof(*pAvro));
     if (!pAvro) {
         errMsg = sqlite3_mprintf("Out of memory");
         rc = SQLITE_NOMEM;
         goto error;
     }
-    memset(pAvro, 0, sizeof(*pAvro));
 
     pAvro->base.pModule = &avroModule;
 
@@ -143,34 +187,9 @@ static int avroCreate(sqlite3 *db, void *pAux, int argc, const char *const *argv
     pAvro->schema = avro_file_reader_get_writer_schema(reader);
     pAvro->iface = avro_generic_class_from_schema(pAvro->schema);
 
-    int nFields = avro_schema_record_size(pAvro->schema);
-    if (nFields <= 0) {
-        errMsg = sqlite3_mprintf("Avro schema has no fields");
-        rc = SQLITE_ERROR;
-        goto error;
-    }
-
-    createTable = sqlite3_mprintf("CREATE TABLE x(");
-    for (int i = 0; createTable && i < nFields; i++) {
-        const char *fieldName = avro_schema_record_field_name(pAvro->schema, i);
-        avro_schema_t fieldSchema = avro_schema_record_field_get_by_index(pAvro->schema, i);
-
-        const char *sqliteType = avroTypeToSqliteType(fieldSchema);
-        if (!sqliteType) {
-            errMsg = sqlite3_mprintf("Unsupported Avro type for field '%s'", fieldName);
-            rc = SQLITE_ERROR;
-            goto error;
-        }
-
-        const char *tail = (i + 1 < nFields) ? ", " : ");";
-        char *createTableNext = sqlite3_mprintf("%s %s %s %s", createTable, fieldName, sqliteType, tail);
-        sqlite3_free(createTable);
-        createTable = createTableNext;
-    }
-
-    if (!createTable) {
-        errMsg = sqlite3_mprintf("Out of memory");
-        rc = SQLITE_NOMEM;
+    rc = avroSchemaToCreateTable(pAvro->schema, &createTable, &errMsg);
+    if (rc != SQLITE_OK) {
+        // err & rc already set
         goto error;
     }
 
@@ -225,12 +244,11 @@ static int avroOpen(sqlite3_vtab *pVtab, sqlite3_vtab_cursor **ppCursor)
 {
     AvroTable *pAvro = (AvroTable *)pVtab;
 
-    AvroCursor *pCur = sqlite3_malloc(sizeof(*pCur));
+    AvroCursor *pCur = sqlite3_calloc(sizeof(*pCur));
     if (!pCur) {
         avroTableSetError(pAvro, "Out of memory");
         return SQLITE_NOMEM;
     }
-    memset(pCur, 0, sizeof(*pCur));
     pCur->base.pVtab = pVtab;
 
     if (avro_file_reader(pAvro->zFile, &pCur->reader)) {
