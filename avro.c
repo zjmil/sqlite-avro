@@ -4,29 +4,15 @@ SQLITE_EXTENSION_INIT1
 
 #include <avro.h>
 
-// TODO: there are almost certainly memory errors
-//       using the Avro library
+#define UNUSED(x) ((void)(x))
 
 static sqlite3_module avroModule;
 
-/*
- * Allocation interface.  You can provide a custom allocator for the
- * library, should you wish.  The allocator is provided as a single
- * generic function, which can emulate the standard malloc, realloc, and
- * free functions.  The design of this allocation interface is inspired
- * by the implementation of the Lua interpreter.
- *
- * The ptr parameter will be the location of any existing memory
- * buffer.  The osize parameter will be the size of this existing
- * buffer.  If ptr is NULL, then osize will be 0.  The nsize parameter
- * will be the size of the new buffer, or 0 if the new buffer should be
- * freed.
- *
- * If nsize is 0, then the allocation function must return NULL.  If
- * nsize is not 0, then it should return NULL if the allocation fails.
- */
 static void *avroSqliteAllocator(void *user_data, void *ptr, size_t osize, size_t nsize)
 {
+    UNUSED(user_data);
+    UNUSED(osize);
+
     if (nsize == 0) {
         sqlite3_free(ptr);
         return NULL;
@@ -141,6 +127,7 @@ static int avroSchemaToCreateTable(avro_schema_t schema, char **pCreateTable, ch
 
 static int avroCreate(sqlite3 *db, void *pAux, int argc, const char *const *argv, sqlite3_vtab **ppVtab, char **pzErr)
 {
+    UNUSED(pAux);
     int rc = SQLITE_OK;
     AvroTable *pAvro = NULL;
     char *errMsg = NULL;
@@ -227,6 +214,7 @@ static int avroConnect(sqlite3 *db, void *pAux, int argc, const char *const *arg
  */
 static int avroBestIndex(sqlite3_vtab *pVtab, sqlite3_index_info *info)
 {
+    UNUSED(pVtab);
     info->estimatedCost = 1000000;
 
     return SQLITE_OK;
@@ -268,7 +256,6 @@ static int avroOpen(sqlite3_vtab *pVtab, sqlite3_vtab_cursor **ppCursor)
 static int avroClose(sqlite3_vtab_cursor *pVtabCursor)
 {
     AvroCursor *pCur = (AvroCursor *)pVtabCursor;
-
     if (pCur) {
         avro_file_reader_close(pCur->reader);
         avro_value_decref(&pCur->value);
@@ -302,8 +289,13 @@ static int avroNext(sqlite3_vtab_cursor *pVtabCursor)
     return SQLITE_OK;
 }
 
+
 static int avroFilter(sqlite3_vtab_cursor *pVtabCursor, int idxNum, const char *idxStr, int argc, sqlite3_value **argv)
 {
+    UNUSED(idxNum);
+    UNUSED(idxStr);
+    UNUSED(argc);
+    UNUSED(argv);
     AvroTable *pAvro = (AvroTable *)pVtabCursor->pVtab;
     AvroCursor *pCur = (AvroCursor *)pVtabCursor;
 
@@ -361,7 +353,7 @@ static int avroColumn(sqlite3_vtab_cursor *pVtabCursor, sqlite3_context *ctx, in
             const char *str = NULL;
             size_t strSize = 0;
             avro_value_get_string(&fieldValue, &str, &strSize);
-            sqlite3_result_text(ctx, str, strSize, SQLITE_TRANSIENT);
+            sqlite3_result_text64(ctx, str, strSize, SQLITE_TRANSIENT, SQLITE_UTF8);
             break;
         }
         case AVRO_ENUM: {
@@ -375,7 +367,7 @@ static int avroColumn(sqlite3_vtab_cursor *pVtabCursor, sqlite3_context *ctx, in
             const void *buf = NULL;
             size_t bufSize = 0;
             avro_value_get_bytes(&fieldValue, &buf, &bufSize);
-            sqlite3_result_blob(ctx, buf, bufSize, SQLITE_TRANSIENT);
+            sqlite3_result_blob64(ctx, buf, bufSize, SQLITE_TRANSIENT);
             break;
         }
         case AVRO_INT32: {
@@ -461,9 +453,13 @@ static sqlite3_module avroModule = {
     0,              /* xSavepoint */
     0,              /* xRelease */
     0,              /* xRollbackTo */
-    0               /* xShadowName */
+    0,              /* xShadowName */
+    0               /* xIntegrity */
 };
 
+#ifdef _WIN32
+__declspec(dllexport)
+#endif
 int sqlite3_avro_init(sqlite3 *db, char **pzErrMsg, const sqlite3_api_routines *pApi)
 {
     int rc = SQLITE_OK;
